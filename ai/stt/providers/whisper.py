@@ -4,7 +4,7 @@ from faster_whisper import WhisperModel
 import numpy as np
 import io
 import wave
-from .interfaces.base import SpeechToTextProvider, TranscriptionResult
+from ai.stt.interfaces.base import SpeechToTextProvider, TranscriptionResult
 
 
 class WhisperProvider(SpeechToTextProvider):

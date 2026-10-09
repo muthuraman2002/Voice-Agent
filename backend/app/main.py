@@ -1,9 +1,23 @@
+import sys
+import os
+
+# Add project root to Python path for AI module imports
+# This must be done before any other imports
+project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '../../..'))
+if project_root not in sys.path:
+    sys.path.insert(0, project_root)
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
 from app.core.config import settings
 from app.api import voice, chat, documents
 import logging
+
+# Verify path is set
+logging.info(f"Project root: {project_root}")
+logging.info(f"sys.path[0]: {sys.path[0]}")
+logging.info(f"ai directory exists: {os.path.exists(os.path.join(project_root, 'ai'))}")
 
 # Configure logging
 logging.basicConfig(

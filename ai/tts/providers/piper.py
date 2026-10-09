@@ -2,7 +2,7 @@ import asyncio
 import os
 import tempfile
 from typing import Optional, Dict, Any, AsyncIterator
-from .interfaces.base import TextToSpeechProvider, AudioGenerationResult
+from ai.tts.interfaces.base import TextToSpeechProvider, AudioGenerationResult
 
 
 class PiperProvider(TextToSpeechProvider):

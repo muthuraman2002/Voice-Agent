@@ -30,6 +30,13 @@ if ! command -v python3 &> /dev/null; then
     exit 1
 fi
 
+# Check for FFmpeg (required for faster-whisper)
+if ! command -v ffmpeg &> /dev/null; then
+    echo "⚠️  FFmpeg not found. Some AI features may not work."
+    echo "   Install with: sudo apt-get install ffmpeg (Linux)"
+    echo "   See docs/SYSTEM_DEPENDENCIES.md for details"
+fi
+
 echo "✅ Prerequisites check passed"
 
 # Create .env file if it doesn't exist

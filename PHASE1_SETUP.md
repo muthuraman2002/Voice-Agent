@@ -25,6 +25,17 @@ Phase 1 implements the basic voice chat pipeline:
    python3 --version
    ```
 
+4. **System Dependencies** (for local development)
+   ```bash
+   # Ubuntu/Debian
+   sudo apt-get update
+   sudo apt-get install -y ffmpeg libavcodec-dev libavformat-dev \
+       libavdevice-dev libavutil-dev libavfilter-dev \
+       libswscale-dev libswresample-dev pkg-config libsndfile1 gcc g++
+
+   # See docs/SYSTEM_DEPENDENCIES.md for macOS/Windows instructions
+   ```
+
 ## Quick Start
 
 ### Option 1: Automated Setup
@@ -59,6 +70,8 @@ docker exec voice-agent-ollama ollama pull qwen2.5:0.5b
 This downloads the LLM model (~4GB for qwen2.5:0.5b ).
 
 #### 4. Setup Backend
+
+**Option A: Local Installation (requires system dependencies)**
 ```bash
 cd backend
 python3 -m venv venv
@@ -67,6 +80,14 @@ pip install --upgrade pip
 pip install -r requirements.txt
 mkdir -p static/audio
 ```
+
+**Option B: Docker (recommended - no system dependencies)**
+```bash
+docker compose build backend
+docker compose up -d backend
+```
+
+*Note: If you encounter errors with `av` package or FFmpeg libraries, use Option B or install system dependencies as shown in the Prerequisites section.*
 
 #### 5. Setup Frontend
 ```bash
@@ -80,6 +101,11 @@ npm install
 ```bash
 cd backend
 source venv/bin/activate
+# Option 1: Use the start script (recommended)
+./start.sh
+
+# Option 2: Manual start with PYTHONPATH
+export PYTHONPATH="$(pwd)/..:${PYTHONPATH}"
 uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 ```
 
@@ -107,6 +133,31 @@ Frontend will be available at http://localhost:3000
    - Audio response played (if TTS is configured)
 
 ## Troubleshooting
+
+### FFmpeg/av Package Installation Error
+
+If you see errors like:
+```
+Package libavformat was not found in the pkg-config search path
+ERROR: Failed to build 'av' when getting requirements to build wheel
+```
+
+**Solution 1: Install System Dependencies (Linux/Ubuntu)**
+```bash
+sudo apt-get update
+sudo apt-get install -y ffmpeg libavcodec-dev libavformat-dev \
+    libavdevice-dev libavutil-dev libavfilter-dev \
+    libswscale-dev libswresample-dev pkg-config libsndfile1 gcc g++
+```
+
+**Solution 2: Use Docker (Recommended)**
+```bash
+docker compose build backend
+docker compose up -d backend
+```
+
+**Solution 3: Skip TTS (Temporary)**
+Comment out the TTS-related code or use a different approach. See docs/SYSTEM_DEPENDENCIES.md for more details.
 
 ### Ollama Not Responding
 ```bash

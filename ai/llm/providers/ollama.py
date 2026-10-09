@@ -1,7 +1,7 @@
 import asyncio
 import httpx
 from typing import Optional, Dict, Any, AsyncIterator, List
-from .interfaces.base import LLMProvider, LLMResponse, Message, ToolCall
+from ai.llm.interfaces.base import LLMProvider, LLMResponse, Message, ToolCall
 
 
 class OllamaProvider(LLMProvider):

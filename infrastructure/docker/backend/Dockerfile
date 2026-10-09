@@ -7,6 +7,14 @@ RUN apt-get update && apt-get install -y \
     gcc \
     g++ \
     ffmpeg \
+    libavcodec-dev \
+    libavformat-dev \
+    libavdevice-dev \
+    libavutil-dev \
+    libavfilter-dev \
+    libswscale-dev \
+    libswresample-dev \
+    pkg-config \
     libsndfile1 \
     && rm -rf /var/lib/apt/lists/*
 

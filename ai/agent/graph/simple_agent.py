@@ -1,5 +1,5 @@
 from typing import Optional, Dict, Any, List
-from ..interfaces.base import Agent, AgentAction, AgentResponse
+from ai.agent.interfaces.base import Agent, AgentAction, AgentResponse
 from ai.llm.interfaces.base import LLMProvider, Message
 
 
