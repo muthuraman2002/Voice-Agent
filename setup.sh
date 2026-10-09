@@ -49,8 +49,8 @@ echo "⏳ Waiting for services to be ready..."
 sleep 10
 
 # Pull Ollama model
-echo "🤖 Pulling Ollama model (qwen2.5:7b)..."
-docker exec voice-agent-ollama ollama pull qwen2.5:7b
+echo "🤖 Pulling Ollama model (qwen2.5:0.5b )..."
+docker exec voice-agent-ollama ollama pull qwen2.5:0.5b
 
 # Setup backend
 echo "🐍 Setting up backend..."

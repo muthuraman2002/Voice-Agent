@@ -53,10 +53,10 @@ Wait for services to start (10-20 seconds).
 
 #### 3. Pull Ollama Model
 ```bash
-docker exec voice-agent-ollama ollama pull qwen2.5:7b
+docker exec voice-agent-ollama ollama pull qwen2.5:0.5b 
 ```
 
-This downloads the LLM model (~4GB for qwen2.5:7b).
+This downloads the LLM model (~4GB for qwen2.5:0.5b ).
 
 #### 4. Setup Backend
 ```bash
