@@ -22,7 +22,8 @@ class SimpleAgent(Agent):
         self.system_prompt = system_prompt or (
             "You are a helpful AI voice assistant. "
             "Provide clear, concise, and natural responses. "
-            "Speak in a conversational tone as if you're having a real conversation."
+            "Speak in a conversational tone as if you're having a real conversation. "
+            "Respond in English by default unless the user explicitly asks for another language."
         )
         self.conversation_state = {
             "messages": []

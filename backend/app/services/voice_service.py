@@ -83,6 +83,8 @@ class VoiceService:
             if project_root not in sys.path:
                 sys.path.insert(0, project_root)
             from ai.llm.providers.ollama import OllamaProvider
+            print(f"[VoiceService] Initializing OllamaProvider with URL: {self.ollama_base_url}")
+            print(f"[VoiceService] Using model: {self.ollama_model}")
             self._llm_provider = OllamaProvider(
                 base_url=self.ollama_base_url,
                 model=self.ollama_model
@@ -127,26 +129,34 @@ class VoiceService:
         timings = {}
 
         try:
+            print(f"[VoiceService] Starting audio processing, size: {len(audio_data)} bytes")
+
             # Step 1: Speech-to-Text
+            print(f"[VoiceService] Step 1: STT transcription")
             stt_start = time.time()
             stt_provider = self._get_stt_provider()
             transcription = await stt_provider.transcribe(audio_data)
             timings["stt_latency_ms"] = (time.time() - stt_start) * 1000
+            print(f"[VoiceService] STT complete: {transcription.text[:50]}...")
 
             transcript = transcription.text
 
-            if not transcript:
+            if not transcript or transcript.strip() == "":
+                print(f"[VoiceService] Empty transcript detected")
                 return {
                     "transcript": "",
                     "response": "I couldn't hear anything. Please try again.",
-                    "latency_ms": (time.time() - start_time) * 1000
+                    "latency_ms": (time.time() - start_time) * 1000,
+                    "timings": timings
                 }
 
             # Step 2: Process with Agent (LLM)
+            print(f"[VoiceService] Step 2: LLM generation")
             llm_start = time.time()
             agent = self._get_agent()
             agent_response = await agent.process(transcript)
             timings["llm_latency_ms"] = (time.time() - llm_start) * 1000
+            print(f"[VoiceService] LLM complete: {agent_response.action.content[:50]}...")
 
             response_text = agent_response.action.content
 
@@ -154,6 +164,7 @@ class VoiceService:
             audio_url = None
             tts_provider = self._get_tts_provider()
             if tts_provider:
+                print(f"[VoiceService] Step 3: TTS synthesis")
                 tts_start = time.time()
                 try:
                     tts_result = await tts_provider.synthesize(response_text)
@@ -161,12 +172,18 @@ class VoiceService:
 
                     # Save audio to temp file and return URL
                     audio_url = await self._save_audio(tts_result.audio_data)
+                    print(f"[VoiceService] TTS complete, saved to: {audio_url}")
                 except Exception as e:
-                    print(f"TTS failed: {e}")
+                    print(f"[VoiceService] TTS failed: {e}")
+                    import traceback
+                    traceback.print_exc()
                     timings["tts_latency_ms"] = None
+            else:
+                print(f"[VoiceService] TTS provider not available")
 
             # Calculate total latency
             timings["total_latency_ms"] = (time.time() - start_time) * 1000
+            print(f"[VoiceService] Total latency: {timings['total_latency_ms']:.2f}ms")
 
             return {
                 "transcript": transcript,
@@ -176,8 +193,46 @@ class VoiceService:
                 "timings": timings
             }
         except Exception as e:
-            print(f"Error processing audio: {e}")
+            print(f"[VoiceService] Error processing audio: {e}")
+            import traceback
+            traceback.print_exc()
             raise
+
+    async def process_text(self, text: str) -> Dict[str, Any]:
+        """Process typed input through the same LLM → TTS pipeline as audio."""
+        text = text.strip()
+        if not text:
+            raise ValueError("Text input cannot be empty")
+
+        start_time = time.time()
+        timings: Dict[str, Any] = {}
+        print(f"[VoiceService] Processing text input: {text[:50]}...")
+
+        llm_start = time.time()
+        agent_response = await self._get_agent().process(text)
+        timings["llm_latency_ms"] = (time.time() - llm_start) * 1000
+        response_text = agent_response.action.content
+
+        audio_url = None
+        tts_provider = self._get_tts_provider()
+        if tts_provider:
+            tts_start = time.time()
+            try:
+                tts_result = await tts_provider.synthesize(response_text)
+                timings["tts_latency_ms"] = (time.time() - tts_start) * 1000
+                audio_url = await self._save_audio(tts_result.audio_data)
+            except Exception as e:
+                print(f"[VoiceService] TTS failed: {e}")
+                timings["tts_latency_ms"] = None
+
+        timings["total_latency_ms"] = (time.time() - start_time) * 1000
+        return {
+            "transcript": text,
+            "response": response_text,
+            "audio_url": audio_url,
+            "latency_ms": timings["total_latency_ms"],
+            "timings": timings,
+        }
 
     async def _save_audio(self, audio_data: bytes) -> str:
         """
@@ -192,16 +247,15 @@ class VoiceService:
         import tempfile
         import aiofiles
 
-        # Create temp file
+        # Ensure the directory exists before creating the temporary file.
+        os.makedirs("static/audio", exist_ok=True)
+
         with tempfile.NamedTemporaryFile(
             suffix=".wav",
             delete=False,
             dir="static/audio"
         ) as f:
             temp_path = f.name
-
-        # Ensure static directory exists
-        os.makedirs("static/audio", exist_ok=True)
 
         # Write audio data
         async with aiofiles.open(temp_path, 'wb') as f:

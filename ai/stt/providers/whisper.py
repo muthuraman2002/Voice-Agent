@@ -76,8 +76,11 @@ class WhisperProvider(SpeechToTextProvider):
     ) -> TranscriptionResult:
         """Synchronous transcription helper"""
         try:
+            print(f"[Whisper] Starting transcription, audio size: {len(audio_data)} bytes")
+
             # Convert bytes to audio data
             audio = self._convert_bytes_to_audio(audio_data)
+            print(f"[Whisper] Audio converted to: {audio}")
 
             # Transcribe
             segments, info = self.model.transcribe(
@@ -101,6 +104,7 @@ class WhisperProvider(SpeechToTextProvider):
                 total_duration = max(total_duration, segment.end)
 
             full_text = " ".join(text_parts).strip()
+            print(f"[Whisper] Transcription complete: {full_text[:50]}...")
 
             return TranscriptionResult(
                 text=full_text,
@@ -113,6 +117,9 @@ class WhisperProvider(SpeechToTextProvider):
                 }
             )
         except Exception as e:
+            print(f"[Whisper] Transcription error: {e}")
+            import traceback
+            traceback.print_exc()
             raise RuntimeError(f"Transcription failed: {e}")
 
     async def transcribe_file(
@@ -204,6 +211,7 @@ class WhisperProvider(SpeechToTextProvider):
             temp_path = temp_file.name
 
         try:
+            print(f"[Whisper] Converting audio bytes to WAV")
             # Write audio data to temp file
             with wave.open(temp_path, 'wb') as wav_file:
                 # Parse the input bytes as WAV
@@ -213,11 +221,14 @@ class WhisperProvider(SpeechToTextProvider):
                     wav_file.setparams(params)
                     wav_file.writeframes(input_wav.readframes(params.nframes))
 
+            print(f"[Whisper] WAV conversion successful: {temp_path}")
             return temp_path
-        except Exception:
+        except Exception as e:
+            print(f"[Whisper] WAV conversion failed: {e}, trying direct write")
             # If it's not WAV, just write the bytes directly
             with open(temp_path, 'wb') as f:
                 f.write(audio_bytes)
+            print(f"[Whisper] Direct write successful: {temp_path}")
             return temp_path
 
     def get_supported_languages(self) -> list[str]:

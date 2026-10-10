@@ -1,6 +1,6 @@
 import sys
 import os
-from pydantic_settings import BaseSettings
+from pydantic_settings import BaseSettings, SettingsConfigDict
 from typing import List
 
 # Ensure project root is in Python path
@@ -10,6 +10,13 @@ if project_root not in sys.path:
 
 
 class Settings(BaseSettings):
+    model_config = SettingsConfigDict(
+        env_file=os.path.join(project_root, ".env"),
+        case_sensitive=True,
+        # This shared file also contains frontend (NEXT_PUBLIC_*) settings.
+        extra="ignore",
+    )
+
     # Database
     DATABASE_URL: str = "postgresql://postgres:postgres@localhost:5432/voice_agent"
     MONGODB_URL: str = "mongodb://localhost:27017/voice_agent"
@@ -76,9 +83,6 @@ class Settings(BaseSettings):
     RAG_CHUNK_OVERLAP: int = 50
     RAG_TOP_K: int = 5
 
-    class Config:
-        env_file = ".env"
-        case_sensitive = True
 
 
 settings = Settings()

@@ -3,16 +3,31 @@
 import { useState, useRef, useEffect } from 'react'
 import { Mic, MicOff, Loader2, Volume2 } from 'lucide-react'
 
+type ConversationTurn = {
+  transcript: string
+  response: string
+}
+
 export default function Home() {
   const [isRecording, setIsRecording] = useState(false)
   const [isProcessing, setIsProcessing] = useState(false)
   const [isPlaying, setIsPlaying] = useState(false)
   const [transcript, setTranscript] = useState('')
   const [response, setResponse] = useState('')
+  const [history, setHistory] = useState<ConversationTurn[]>([])
+  const [textInput, setTextInput] = useState('')
+  const [isReading, setIsReading] = useState(false)
   const [error, setError] = useState('')
   const mediaRecorderRef = useRef<MediaRecorder | null>(null)
   const audioChunksRef = useRef<Blob[]>([])
   const audioRef = useRef<HTMLAudioElement | null>(null)
+
+  useEffect(() => {
+    return () => {
+      // Do not leave speech playing after navigating away from the page.
+      window.speechSynthesis?.cancel()
+    }
+  }, [])
 
   const startRecording = async () => {
     try {
@@ -69,10 +84,14 @@ export default function Home() {
       const data = await response.json()
       setTranscript(data.transcript)
       setResponse(data.response)
+      setHistory((previous) => [
+        ...previous,
+        { transcript: data.transcript, response: data.response },
+      ])
 
       // Play audio response if available
       if (data.audio_url) {
-        playAudioResponse(data.audio_url)
+        playAudioResponse(data.audio_url, apiUrl)
       }
     } catch (err) {
       setError('Failed to process audio. Please try again.')
@@ -82,13 +101,74 @@ export default function Home() {
     }
   }
 
-  const playAudioResponse = (audioUrl: string) => {
+  const processText = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault()
+    const text = textInput.trim()
+    if (!text || isProcessing) return
+
+    setError('')
+    setIsProcessing(true)
+    try {
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
+      const result = await fetch(`${apiUrl}/api/voice/text`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text }),
+      })
+
+      if (!result.ok) {
+        throw new Error('Failed to process text')
+      }
+
+      const data = await result.json()
+      setTranscript(data.transcript)
+      setResponse(data.response)
+      setHistory((previous) => [
+        ...previous,
+        { transcript: data.transcript, response: data.response },
+      ])
+      setTextInput('')
+
+      if (data.audio_url) {
+        playAudioResponse(data.audio_url, apiUrl)
+      }
+    } catch (err) {
+      setError('Failed to send text. Please try again.')
+      console.error('Error processing text:', err)
+    } finally {
+      setIsProcessing(false)
+    }
+  }
+
+  const playAudioResponse = (audioUrl: string, apiUrl: string) => {
     if (audioRef.current) {
-      audioRef.current.src = audioUrl
+      // The API returns a relative /static/audio URL.
+      audioRef.current.src = new URL(audioUrl, `${apiUrl}/`).toString()
       audioRef.current.onplay = () => setIsPlaying(true)
       audioRef.current.onended = () => setIsPlaying(false)
-      audioRef.current.play()
+      audioRef.current.onerror = () => setIsPlaying(false)
+      audioRef.current.play().catch(() => setIsPlaying(false))
     }
+  }
+
+  const readResponse = () => {
+    if (!response || typeof window === 'undefined' || !window.speechSynthesis) {
+      return
+    }
+
+    if (isReading) {
+      window.speechSynthesis.cancel()
+      setIsReading(false)
+      return
+    }
+
+    const utterance = new SpeechSynthesisUtterance(response)
+    utterance.lang = 'en-US'
+    utterance.onstart = () => setIsReading(true)
+    utterance.onend = () => setIsReading(false)
+    utterance.onerror = () => setIsReading(false)
+    window.speechSynthesis.cancel()
+    window.speechSynthesis.speak(utterance)
   }
 
   return (
@@ -155,34 +235,71 @@ export default function Home() {
             </div>
           </div>
 
-          {/* Transcript */}
-          {transcript && (
-            <div className="bg-white/10 backdrop-blur-lg rounded-2xl p-6 mb-6 border border-white/20">
-              <div className="flex items-start space-x-3">
-                <div className="bg-blue-500 rounded-full p-2">
-                  <Mic className="w-5 h-5 text-white" />
-                </div>
-                <div className="flex-1">
-                  <p className="text-sm text-gray-400 mb-1">You said:</p>
-                  <p className="text-lg text-white">{transcript}</p>
-                </div>
-              </div>
-            </div>
-          )}
+          {/* Text input */}
+          <form
+            onSubmit={processText}
+            className="mb-8 flex gap-3 rounded-2xl border border-white/20 bg-white/10 p-4 backdrop-blur-lg"
+          >
+            <label htmlFor="text-input" className="sr-only">Type a message</label>
+            <input
+              id="text-input"
+              type="text"
+              value={textInput}
+              onChange={(event) => setTextInput(event.target.value)}
+              placeholder="Or type a message..."
+              disabled={isProcessing}
+              className="min-w-0 flex-1 rounded-xl border border-white/20 bg-slate-900/50 px-4 py-3 text-white placeholder:text-gray-400 focus:border-blue-400 focus:outline-none"
+            />
+            <button
+              type="submit"
+              disabled={isProcessing || !textInput.trim()}
+              className="rounded-xl bg-blue-500 px-5 py-3 font-semibold text-white transition hover:bg-blue-600 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              Send
+            </button>
+          </form>
 
-          {/* Response */}
-          {response && (
-            <div className="bg-white/10 backdrop-blur-lg rounded-2xl p-6 mb-6 border border-white/20">
-              <div className="flex items-start space-x-3">
-                <div className="bg-purple-500 rounded-full p-2">
-                  <Volume2 className="w-5 h-5 text-white" />
+          {/* Conversation history */}
+          {history.length > 0 && (
+            <section className="mb-6 space-y-4" aria-label="Conversation history">
+              <h2 className="px-1 text-xl font-semibold text-white">Conversation history</h2>
+              {history.map((turn, index) => (
+                <div
+                  key={`${index}-${turn.transcript}`}
+                  className="space-y-3 rounded-2xl border border-white/20 bg-white/10 p-6 backdrop-blur-lg"
+                >
+                  <div className="flex items-start space-x-3">
+                    <div className="rounded-full bg-blue-500 p-2">
+                      <Mic className="h-5 w-5 text-white" />
+                    </div>
+                    <div className="flex-1">
+                      <p className="mb-1 text-sm text-gray-400">You said:</p>
+                      <p className="text-lg text-white">{turn.transcript}</p>
+                    </div>
+                  </div>
+                  <div className="flex items-start space-x-3 border-t border-white/10 pt-3">
+                    <div className="rounded-full bg-purple-500 p-2">
+                      <Volume2 className="h-5 w-5 text-white" />
+                    </div>
+                    <div className="flex-1">
+                      <p className="mb-1 text-sm text-gray-400">AI responded:</p>
+                      <p className="text-lg text-white">{turn.response}</p>
+                      {index === history.length - 1 && response === turn.response && (
+                        <button
+                          type="button"
+                          onClick={readResponse}
+                          className="mt-4 inline-flex items-center gap-2 rounded-lg bg-white/10 px-3 py-2 text-sm text-gray-200 transition hover:bg-white/20"
+                          aria-label={isReading ? 'Stop reading response' : 'Read response aloud'}
+                        >
+                          <Volume2 className={`h-4 w-4 ${isReading ? 'animate-pulse' : ''}`} />
+                          {isReading ? 'Stop reading' : 'Read response'}
+                        </button>
+                      )}
+                    </div>
+                  </div>
                 </div>
-                <div className="flex-1">
-                  <p className="text-sm text-gray-400 mb-1">AI responded:</p>
-                  <p className="text-lg text-white">{response}</p>
-                </div>
-              </div>
-            </div>
+              ))}
+            </section>
           )}
 
           {/* Hidden Audio Element */}

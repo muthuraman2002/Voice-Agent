@@ -22,6 +22,11 @@ class OllamaProvider(LLMProvider):
             timeout: Request timeout in seconds
         """
         self.base_url = base_url.rstrip("/")
+        if not self.base_url.startswith(("http://", "https://")):
+            raise ValueError(
+                "Ollama base_url must include http:// or https:// "
+                f"(received {base_url!r})"
+            )
         self.model = model
         self.timeout = timeout
         self.client = None
@@ -114,8 +119,16 @@ class OllamaProvider(LLMProvider):
                     "load_duration": data.get("load_duration")
                 }
             )
+        except httpx.HTTPStatusError as e:
+            detail = (
+                f"Ollama returned HTTP {e.response.status_code} for "
+                f"{e.request.url}. Check OLLAMA_BASE_URL and that Ollama is running."
+            )
+            raise RuntimeError(detail) from e
         except httpx.HTTPError as e:
-            raise RuntimeError(f"Ollama API error: {e}")
+            raise RuntimeError(
+                f"Could not reach Ollama at {self.base_url}: {e}"
+            ) from e
 
     async def generate_stream(
         self,
@@ -191,8 +204,15 @@ class OllamaProvider(LLMProvider):
                                 break
                         except json.JSONDecodeError:
                             continue
+        except httpx.HTTPStatusError as e:
+            raise RuntimeError(
+                f"Ollama returned HTTP {e.response.status_code} for "
+                f"{e.request.url}. Check OLLAMA_BASE_URL and that Ollama is running."
+            ) from e
         except httpx.HTTPError as e:
-            raise RuntimeError(f"Ollama streaming error: {e}")
+            raise RuntimeError(
+                f"Could not reach Ollama at {self.base_url}: {e}"
+            ) from e
 
     def get_model_info(self) -> Dict[str, Any]:
         """Get model information"""
