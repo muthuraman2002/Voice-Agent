@@ -8,6 +8,10 @@ project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '../../..
 if project_root not in sys.path:
     sys.path.insert(0, project_root)
 
+print(f"[config.py] Project root: {project_root}")
+print(f"[config.py] Looking for .env at: {os.path.join(project_root, '.env')}")
+print(f"[config.py] .env exists: {os.path.exists(os.path.join(project_root, '.env'))}")
+
 
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(
@@ -16,6 +20,11 @@ class Settings(BaseSettings):
         # This shared file also contains frontend (NEXT_PUBLIC_*) settings.
         extra="ignore",
     )
+
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        print(f"[Settings] OLLAMA_BASE_URL: {self.OLLAMA_BASE_URL}")
+        print(f"[Settings] OLLAMA_MODEL: {self.OLLAMA_MODEL}")
 
     # Database
     DATABASE_URL: str = "postgresql://postgres:postgres@localhost:5432/voice_agent"
@@ -28,8 +37,8 @@ class Settings(BaseSettings):
     REFRESH_TOKEN_EXPIRE_DAYS: int = 7
 
     # Ollama
-    OLLAMA_BASE_URL: str = "http://localhost:11434"
-    OLLAMA_MODEL: str = "qwen2.5:7b"
+    OLLAMA_BASE_URL: str = "http://localhost:11435"
+    OLLAMA_MODEL: str = "qwen2.5:0.5b"
     OLLAMA_TEMPERATURE: float = 0.7
     OLLAMA_MAX_TOKENS: int = 2048
 

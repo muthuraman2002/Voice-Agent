@@ -50,6 +50,7 @@ services:
   ollama:
     image: ollama/ollama:latest
     container_name: voice-agent-ollama
+    restart: unless-stopped
     ports:
       - "11435:11434"
     volumes:

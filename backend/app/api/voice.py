@@ -37,6 +37,8 @@ def get_voice_service():
     global _voice_service
     if _voice_service is None:
         print(f"[get_voice_service] Creating VoiceService instance")
+        print(f"[get_voice_service] OLLAMA_BASE_URL from settings: {settings.OLLAMA_BASE_URL}")
+        print(f"[get_voice_service] OLLAMA_MODEL from settings: {settings.OLLAMA_MODEL}")
         _voice_service = VoiceService(
             stt_model=settings.STT_MODEL,
             stt_language=settings.STT_LANGUAGE,
