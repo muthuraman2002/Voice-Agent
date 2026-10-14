@@ -39,6 +39,9 @@ class Settings(BaseSettings):
     # Ollama
     OLLAMA_BASE_URL: str = "http://localhost:11435"
     OLLAMA_MODEL: str = "qwen2.5:0.5b"
+    # Local CPU inference can take longer than a typical HTTP request while a
+    # model is loading or generating its first reply.
+    OLLAMA_TIMEOUT_SECONDS: float = 300.0
     OLLAMA_TEMPERATURE: float = 0.7
     OLLAMA_MAX_TOKENS: int = 2048
 

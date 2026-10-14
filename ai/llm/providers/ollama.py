@@ -28,13 +28,19 @@ class OllamaProvider(LLMProvider):
                 f"(received {base_url!r})"
             )
         self.model = model
+        if timeout <= 0:
+            raise ValueError("Ollama timeout must be greater than zero")
         self.timeout = timeout
         self.client = None
 
     async def _get_client(self) -> httpx.AsyncClient:
         """Get or create HTTP client"""
         if self.client is None:
-            self.client = httpx.AsyncClient(timeout=self.timeout)
+            # Keep connection setup quick, but allow local CPU inference enough
+            # time to load the model and generate a response.
+            self.client = httpx.AsyncClient(
+                timeout=httpx.Timeout(self.timeout, connect=10.0)
+            )
         return self.client
 
     async def generate(
@@ -125,6 +131,11 @@ class OllamaProvider(LLMProvider):
                 f"{e.request.url}. Check OLLAMA_BASE_URL and that Ollama is running."
             )
             raise RuntimeError(detail) from e
+        except httpx.ReadTimeout as e:
+            raise RuntimeError(
+                f"Ollama timed out after {self.timeout:.0f}s at {self.base_url}. "
+                "The model may still be loading or the host is under heavy load."
+            ) from e
         except httpx.HTTPError as e:
             raise RuntimeError(
                 f"Could not reach Ollama at {self.base_url}: {e}"
@@ -208,6 +219,11 @@ class OllamaProvider(LLMProvider):
             raise RuntimeError(
                 f"Ollama returned HTTP {e.response.status_code} for "
                 f"{e.request.url}. Check OLLAMA_BASE_URL and that Ollama is running."
+            ) from e
+        except httpx.ReadTimeout as e:
+            raise RuntimeError(
+                f"Ollama timed out after {self.timeout:.0f}s at {self.base_url}. "
+                "The model may still be loading or the host is under heavy load."
             ) from e
         except httpx.HTTPError as e:
             raise RuntimeError(

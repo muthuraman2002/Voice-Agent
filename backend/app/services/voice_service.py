@@ -34,6 +34,7 @@ class VoiceService:
         stt_device: str = "cpu",
         ollama_base_url: str = "http://localhost:11435",
         ollama_model: str = "qwen2.5:0.5b",
+        ollama_timeout: float = 300.0,
         tts_model: str = "en_US-lessac-medium"
     ):
         """
@@ -45,6 +46,7 @@ class VoiceService:
             stt_device: Device for STT
             ollama_base_url: Ollama API URL
             ollama_model: LLM model name
+            ollama_timeout: Maximum seconds to wait for a local LLM response
             tts_model: Piper TTS model
         """
         self.stt_model = stt_model
@@ -52,6 +54,7 @@ class VoiceService:
         self.stt_device = stt_device
         self.ollama_base_url = ollama_base_url
         self.ollama_model = ollama_model
+        self.ollama_timeout = ollama_timeout
         self.tts_model = tts_model
 
         # Lazy initialization of providers
@@ -87,7 +90,8 @@ class VoiceService:
             print(f"[VoiceService] Using model: {self.ollama_model}")
             self._llm_provider = OllamaProvider(
                 base_url=self.ollama_base_url,
-                model=self.ollama_model
+                model=self.ollama_model,
+                timeout=self.ollama_timeout,
             )
         return self._llm_provider
 

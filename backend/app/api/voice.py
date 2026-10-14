@@ -45,6 +45,7 @@ def get_voice_service():
             stt_device=settings.STT_DEVICE,
             ollama_base_url=settings.OLLAMA_BASE_URL,
             ollama_model=settings.OLLAMA_MODEL,
+            ollama_timeout=settings.OLLAMA_TIMEOUT_SECONDS,
             tts_model=settings.TTS_MODEL
         )
     return _voice_service
