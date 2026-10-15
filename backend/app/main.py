@@ -11,7 +11,8 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
 from app.core.config import settings
-from app.api import voice, chat, documents
+from app.core.auth import init_auth_database
+from app.api import auth, voice, chat, documents
 import logging
 
 # Verify path is set
@@ -30,6 +31,7 @@ logger = logging.getLogger(__name__)
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Application lifespan manager"""
+    init_auth_database()
     logger.info("Starting Voice Agent API")
     yield
     logger.info("Shutting down Voice Agent API")
@@ -54,6 +56,7 @@ app.add_middleware(
 
 # Include routers
 app.include_router(voice.router, prefix="/api/voice", tags=["voice"])
+app.include_router(auth.router, prefix="/api/auth", tags=["auth"])
 app.include_router(chat.router, prefix="/api/chat", tags=["chat"])
 app.include_router(documents.router, prefix="/api/documents", tags=["documents"])
 

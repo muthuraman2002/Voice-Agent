@@ -119,7 +119,9 @@ class VoiceService:
             self._agent = SimpleAgent(llm_provider=self._get_llm_provider())
         return self._agent
 
-    async def process_audio(self, audio_data: bytes) -> Dict[str, Any]:
+    async def process_audio(
+        self, audio_data: bytes, session_id: Optional[str] = None
+    ) -> Dict[str, Any]:
         """
         Process audio through the full pipeline: STT → LLM → TTS
 
@@ -131,6 +133,7 @@ class VoiceService:
         """
         start_time = time.time()
         timings = {}
+        session_id, session = self._get_or_create_session(session_id)
 
         try:
             print(f"[VoiceService] Starting audio processing, size: {len(audio_data)} bytes")
@@ -149,6 +152,7 @@ class VoiceService:
                 print(f"[VoiceService] Empty transcript detected")
                 return {
                     "transcript": "",
+                    "session_id": session_id,
                     "response": "I couldn't hear anything. Please try again.",
                     "latency_ms": (time.time() - start_time) * 1000,
                     "timings": timings
@@ -158,11 +162,14 @@ class VoiceService:
             print(f"[VoiceService] Step 2: LLM generation")
             llm_start = time.time()
             agent = self._get_agent()
-            agent_response = await agent.process(transcript)
+            agent_response = await agent.process(
+                transcript, conversation_history=session["messages"]
+            )
             timings["llm_latency_ms"] = (time.time() - llm_start) * 1000
             print(f"[VoiceService] LLM complete: {agent_response.action.content[:50]}...")
 
             response_text = agent_response.action.content
+            self._add_turn(session, transcript, response_text, "voice")
 
             # Step 3: Text-to-Speech
             audio_url = None
@@ -191,6 +198,7 @@ class VoiceService:
 
             return {
                 "transcript": transcript,
+                "session_id": session_id,
                 "response": response_text,
                 "audio_url": audio_url,
                 "latency_ms": timings["total_latency_ms"],
@@ -202,7 +210,9 @@ class VoiceService:
             traceback.print_exc()
             raise
 
-    async def process_text(self, text: str) -> Dict[str, Any]:
+    async def process_text(
+        self, text: str, session_id: Optional[str] = None
+    ) -> Dict[str, Any]:
         """Process typed input through the same LLM → TTS pipeline as audio."""
         text = text.strip()
         if not text:
@@ -210,12 +220,16 @@ class VoiceService:
 
         start_time = time.time()
         timings: Dict[str, Any] = {}
+        session_id, session = self._get_or_create_session(session_id)
         print(f"[VoiceService] Processing text input: {text[:50]}...")
 
         llm_start = time.time()
-        agent_response = await self._get_agent().process(text)
+        agent_response = await self._get_agent().process(
+            text, conversation_history=session["messages"]
+        )
         timings["llm_latency_ms"] = (time.time() - llm_start) * 1000
         response_text = agent_response.action.content
+        self._add_turn(session, text, response_text, "text")
 
         audio_url = None
         tts_provider = self._get_tts_provider()
@@ -232,6 +246,7 @@ class VoiceService:
         timings["total_latency_ms"] = (time.time() - start_time) * 1000
         return {
             "transcript": text,
+            "session_id": session_id,
             "response": response_text,
             "audio_url": audio_url,
             "latency_ms": timings["total_latency_ms"],
@@ -279,9 +294,38 @@ class VoiceService:
         session_id = str(uuid.uuid4())
         self.sessions[session_id] = {
             "created_at": time.time(),
-            "messages": []
+            "messages": [],
+            "turns": [],
         }
         return session_id
+
+    def _get_or_create_session(
+        self, session_id: Optional[str]
+    ) -> tuple[str, Dict[str, Any]]:
+        """Return an existing conversation session or create a new one."""
+        if session_id and session_id in self.sessions:
+            return session_id, self.sessions[session_id]
+
+        new_session_id = self.create_session()
+        return new_session_id, self.sessions[new_session_id]
+
+    def _add_turn(
+        self,
+        session: Dict[str, Any],
+        query: str,
+        response: str,
+        input_type: str,
+    ) -> None:
+        """Store a completed turn for both LLM context and UI history."""
+        session["messages"].extend([
+            {"role": "user", "content": query},
+            {"role": "assistant", "content": response},
+        ])
+        session["turns"].append({
+            "query": query,
+            "response": response,
+            "input_type": input_type,
+        })
 
     def get_session(self, session_id: str) -> Optional[Dict[str, Any]]:
         """Get session by ID"""

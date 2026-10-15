@@ -35,6 +35,25 @@ class Settings(BaseSettings):
     JWT_ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
     REFRESH_TOKEN_EXPIRE_DAYS: int = 7
+    AUTH_DATABASE_URL: str = "sqlite:///./voice_agent_auth.db"
+    OTP_EXPIRE_MINUTES: int = 10
+    OTP_LOGIN_TOKEN_EXPIRE_MINUTES: int = 5
+    OTP_EXPOSE_IN_RESPONSE: bool = True
+    ADMIN_EMAILS: List[str] = []
+
+    # Email Verification
+    EMAIL_VERIFICATION_REQUIRED: bool = True
+    EMAIL_FROM: str = "noreply@voiceagent.com"
+    EMAIL_VERIFICATION_EXPIRE_HOURS: int = 24
+
+    # Password Reset
+    PASSWORD_RESET_EXPIRE_HOURS: int = 1
+
+    # Trial
+    TRIAL_REQUESTS_LIMIT: int = 100
+
+    # Guest Mode
+    GUEST_REQUESTS_LIMIT: int = 5
 
     # Ollama
     OLLAMA_BASE_URL: str = "http://localhost:11435"
